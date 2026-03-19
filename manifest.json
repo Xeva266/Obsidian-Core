@@ -1,15 +1,18 @@
 {
   "short_name": "Obsidian",
   "name": "OBSIDIAN_CORE_OS",
+  "description": "Secure Sigma Vault System",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/564/564348.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/2103/2103633.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#000000",
-  "background_color": "#000000"
+  "background_color": "#000000",
+  "orientation": "portrait"
 }
