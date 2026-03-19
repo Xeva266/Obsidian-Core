@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CEVA_VAULT_OS</title>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { margin: 0; background: black; color: #00ff41; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
+        canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; }
+        .box { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.9); padding: 20px; border: 1px solid #00ff41; width: 320px; z-index: 10; display: none; box-shadow: 0 0 20px rgba(0, 255, 65, 0.3); }
+        .app-title { text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 3px; margin-bottom: 15px; border-bottom: 2px solid #00ff41; padding-bottom: 10px; color: #00ff41; text-shadow: 0 0 10px #00ff41; }
+        h2 { text-align: center; margin-top: 0; font-size: 14px; opacity: 0.8; letter-spacing: 1px; }
+        textarea { width: 100%; background: black; border: 1px solid #00ff41; color: #00ff41; padding: 10px; box-sizing: border-box; resize: none; font-family: monospace; outline: none; margin-bottom: 5px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        button { flex: 1; background: #003300; color: #00ff41; border: 1px solid #00ff41; padding: 12px; cursor: pointer; font-weight: bold; font-family: monospace; transition: 0.2s; }
+        button:hover { background: #00ff41; color: black; box-shadow: 0 0 15px #00ff41; }
+        .label { margin: 15px 0 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
+        #lockOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        /* LATENCY BAR STYLE */
+        .status-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(0, 40, 0, 0.8); border-top: 1px solid #00ff41; padding: 5px 15px; font-size: 10px; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 100; }
+        .latency-dot { height: 8px; width: 8px; background-color: #00ff41; border-radius: 50%; display: inline-block; margin-right: 5px; box-shadow: 0 0 5px #00ff41; }
+    </style>
+</head>
+<body>
+
+<div id="customAlert" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#000; border:2px solid #00ff41; color:#00ff41; padding:20px; font-family:monospace; z-index:10000; text-align:center; box-shadow: 0 0 20px #00ff41;">
+    <p id="alertMessage" style="margin:0 0 15px 0; font-size: 14px;"></p>
+    <button onclick="closeAlert()" style="background:#00ff41; color:#000; border:none; padding:8px 20px; cursor:pointer; font-weight:bold; font-family:monospace;">[ACKNOWLEDGE]</button>
+</div>
+
+<div id="lockOverlay">
+    <div style="font-size: 32px; font-weight: bold; margin-bottom: 10px; text-shadow: 0 0 20px #00ff41; letter-spacing: 4px;">CEVA_VAULT</div>
+    <h2 style="color: #00ff41; margin-bottom: 30px;">[CORE_SYSTEM_ENCRYPTED]</h2>
+    <input type="password" id="passInput" placeholder="ACCESS_PIN" style="background: black; border: 1px solid #00ff41; color: #00ff41; padding: 15px; text-align: center; font-family: monospace; outline: none; width: 220px; font-size: 18px;">
+    <button onclick="verify()" style="margin-top: 20px; width: 220px; background: #00ff41; color: black; border: none; font-weight: bold; padding: 12px; font-size: 14px;">AUTHORIZE_LOGON</button>
+</div>
+
+<canvas id="matrix"></canvas>
+
+<div class="box">
+    <div class="app-title">CEVA_VAULT_OS</div>
+    <h2>STATUS: ENCRYPTION_READY</h2>
+    
+    <p class="label">Input_Data:</p>
+    <textarea id="inputBox" rows="4" placeholder="Enter secure string..."></textarea>
+    
+    <div class="btn-group">
+        <button onclick="process(true)">ENCRYPT & SYNC</button>
+        <button onclick="process(false)">DECRYPT</button>
+    </div>
+
+    <button onclick="copyToClipboard()" style="margin-top: 10px; width: 100%; background: #002200;">EXTRACT_TO_CLIPBOARD</button>
+    <button onclick="clearAll()" style="margin-top: 10px; width: 100%; background: #222; color: #fff; border-color: #fff;">WIPE_LOCAL_BUFFER</button>
+    
+    <button onclick="fetchFromCloud()" style="background: #000; color: #00ff41; margin-top: 10px; width: 100%; border: 1px solid #00ff41;">[PULL_FROM_CLOUD]</button>
+
+    <p class="label" style="margin-top: 20px;">Secure_Hash:</p>
+    <textarea id="outputBox" rows="4" readonly></textarea>
+</div>
+
+<div class="status-bar" id="statusBar" style="display:none;">
+    <span><span class="latency-dot"></span>SYSTEM_ACTIVE: GOOGLE_CLOUD_UPLINK</span>
+    <span id="pingVal">PING: --ms</span>
+</div>
+
+<script>
+    function sigmaAlert(msg) {
+        document.getElementById('alertMessage').innerText = "> " + msg + "_";
+        document.getElementById('customAlert').style.display = 'block';
+    }
+    function closeAlert() {
+        document.getElementById('customAlert').style.display = 'none';
+    }
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCrk-zbd8p2wkTtOQEHwxdZTH-YckViKv8",
+      authDomain: "green-vault-60ce9.firebaseapp.com",
+      projectId: "green-vault-60ce9",
+      storageBucket: "green-vault-60ce9.firebasestorage.app",
+      messagingSenderId: "627288870252",
+      appId: "1:627288870252:web:390627935743b58c9fb749"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const SHIFT = 4;
+
+    // FUNCTION TO CALCULATE PING
+    function updatePing(startTime) {
+        const endTime = Date.now();
+        const ping = endTime - startTime;
+        document.getElementById('pingVal').innerText = "PING: " + ping + "ms";
+    }
+
+    async function verify() {
+        const pinInput = document.getElementById('passInput');
+        const pin = pinInput.value;
+        const start = Date.now();
+
+        if (pin === "2211") {
+            try {
+                await db.collection("access_logs").add({
+                    event: "SUCCESSFUL_LOGIN",
+                    status: "AUTHORIZED",
+                    platform: navigator.platform,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                updatePing(start);
+            } catch(e) { console.log("Log error"); }
+
+            document.getElementById('lockOverlay').style.display = 'none';
+            document.querySelector('.box').style.display = 'block';
+            document.getElementById('statusBar').style.display = 'flex';
+            sigmaAlert("CEVA_OS: ACCESS_GRANTED");
+        } else {
+            try {
+                await db.collection("access_logs").add({
+                    event: "INTRUDER_ALERT",
+                    status: "DENIED",
+                    attempted_pin: pin,
+                    platform: navigator.platform,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch(e) { console.log("Log error"); }
+            sigmaAlert("CRITICAL_ERROR: INTRUDER_TRACE_ACTIVE");
+            setTimeout(() => location.reload(), 2000);
+        }
+    }
+
+    function caesar(text, shift) {
+        return text.split('').map(char => {
+            if (char.match(/[a-z]/i)) {
+                let code = char.charCodeAt(0);
+                let start = (code >= 65 && code <= 90) ? 65 : 97;
+                return String.fromCharCode(((code - start + shift) % 26 + 26) % 26 + start);
+            }
+            return char;
+        }).join('');
+    }
+
+    async function process(isEncrypt) {
+        const input = document.getElementById('inputBox').value;
+        const output = document.getElementById('outputBox');
+        if (!input) return sigmaAlert("ERROR: NULL_INPUT");
+
+        if (isEncrypt) {
+            let step1 = caesar(input, SHIFT);
+            const hash = btoa(step1);
+            output.value = hash; 
+            sigmaAlert("ENCRYPTING... SYNCING_TO_CEVA_CLOUD");
+            const start = Date.now();
+            try {
+                await db.collection("vault").add({
+                    encrypted_msg: hash,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                updatePing(start);
+                sigmaAlert("SUCCESS: VAULT_PERSISTENCE_COMPLETE");
+            } catch (e) { sigmaAlert("UPLINK_FAILURE: DATA_NOT_SAVED"); }
+        } else {
+            try {
+                let step1 = atob(input);
+                output.value = caesar(step1, -SHIFT);
+                sigmaAlert("DECRYPTION: SUCCESS");
+            } catch(e) { sigmaAlert("DECRYPTION: HASH_INVALID"); }
+        }
+    }
+
+    async function fetchFromCloud() {
+        const output = document.getElementById('outputBox');
+        const start = Date.now();
+        try {
+            const snapshot = await db.collection("vault").orderBy("timestamp", "desc").limit(1).get();
+            updatePing(start);
+            if (snapshot.empty) return sigmaAlert("CLOUD_REPORT: VAULT_EMPTY");
+            output.value = snapshot.docs[0].data().encrypted_msg;
+            sigmaAlert("RECOVERY: DATA_PULLED_SUCCESSFULLY");
+        } catch (e) { sigmaAlert("ERROR: SERVER_UNREACHABLE"); }
+    }
+
+    function copyToClipboard() {
+        const output = document.getElementById('outputBox');
+        output.select();
+        document.execCommand('copy');
+        sigmaAlert("NOTICE: DATA_COPIED_TO_CLIPBOARD");
+    }
+
+    function clearAll() {
+        document.getElementById('inputBox').value = "";
+        document.getElementById('outputBox').value = "";
+        sigmaAlert("BUFFER_CLEARED: MEMORY_SAFE");
+    }
+
+    // MATRIX RAIN ENGINE
+    const canvas = document.getElementById('matrix');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*";
+    const fontSize = 16;
+    const columns = canvas.width / fontSize;
+    const drops = Array(Math.floor(columns)).fill(1);
+    function draw() {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#0f0";
+        ctx.font = fontSize + "px monospace";
+        for (let i = 0; i < drops.length; i++) {
+            const text = chars.charAt(Math.floor(Math.random() * chars.length));
+            ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+            drops[i]++;
+        }
+    }
+    setInterval(draw, 33);
+</script>
+</body>
+</html>
