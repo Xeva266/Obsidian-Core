@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarvFit | Secure Vault</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#050505">
+
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root { --blue: #007bff; --card: rgba(25, 25, 25, 0.9); --gold: #f1c40f; }
+        body { 
+            background: #050505; color: white; font-family: 'Inter', sans-serif; 
+            margin: 0; min-height: 100vh; overflow-x: hidden; position: relative;
+        }
+        /* Sigma Silhouette Background */
+        body::before {
+            content: ""; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; height: 85%; opacity: 0.04; pointer-events: none; z-index: -1;
+            background: url('https://i.ibb.co/LzNfXmB/bodybuilder-silhouette.png') no-repeat center;
+            background-size: contain;
+        }
+        .container { width: 92%; max-width: 400px; margin: 0 auto; padding-top: 50px; }
+        .card { 
+            background: var(--card); border-radius: 30px; padding: 25px; margin-bottom: 20px; 
+            border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px);
+        }
+        input { 
+            width: 100%; padding: 15px; margin: 10px 0; background: #000; 
+            border: 1px solid #333; color: white; border-radius: 15px; box-sizing: border-box; 
+        }
+        .btn { 
+            background: var(--blue); color: white; border: none; padding: 18px; width: 100%; 
+            border-radius: 18px; font-weight: 900; cursor: pointer; text-transform: uppercase; 
+            letter-spacing: 2px;
+        }
+        .hidden { display: none !important; }
+        .status-badge { background: #333; padding: 5px 12px; border-radius: 20px; font-size: 0.6rem; color: var(--gold); float: right; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1 style="font-style:italic; letter-spacing:10px; color:var(--blue); margin:0;">CARVFIT</h1>
+        </header>
+
+        <div id="auth-section" class="card">
+            <h2 style="margin:0 0 20px 0; font-weight:300;">Vault Access</h2>
+            <input type="email" id="email" placeholder="Email Address">
+            <input type="password" id="password" placeholder="Password">
+            <button class="btn" onclick="handleAuth()">Login</button>
+        </div>
+
+        <div id="dashboard" class="hidden">
+            <div class="card">
+                <span class="status-badge">PENDING</span>
+                <h2 style="margin:0;">Status</h2>
+                <div id="countdown" style="font-size: 2rem; color: var(--gold); text-align: center; margin: 20px 0; font-weight: 900;">VERIFYING...</div>
+                
+                <p style="font-size: 0.8rem; color: #888;">Select Payment Receipt:</p>
+                <input type="file" id="receipt-file">
+                <button class="btn" style="margin-top: 15px;" onclick="alert('Sent for approval!')">Submit for Approval</button>
+            </div>
+
+            <div class="card">
+                <p style="color: var(--blue); font-size: 0.7rem; font-weight: 900; margin-bottom: 5px;">PAYMENT VAULT</p>
+                <h2 style="margin: 0;">811 049 8093</h2>
+                <p style="color: #888; margin: 5px 0 0 0;">Opay</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Official Project Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyD8di8AYcgRMboUQTkdhgR0SwSo0x0szbw",
+            authDomain: "carvfit-f64fa.firebaseapp.com",
+            projectId: "carvfit-f64fa",
+            storageBucket: "carvfit-f64fa.firebasestorage.app",
+            messagingSenderId: "945780182023",
+            appId: "1:945780182023:web:7dfb52021a3a689953eea2"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Fixes the "handleAuth is not defined" error
+        async function handleAuth() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            try { 
+                await auth.signInWithEmailAndPassword(email, pass); 
+            } catch(e) { 
+                alert(e.message); 
+            }
+        }
+
+        auth.onAuthStateChanged(async user => {
+            if(user) {
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                
+                // Check user role
+                const doc = await db.collection("users").doc(user.uid).get();
+                if(doc.exists && doc.data().expiry) {
+                    startTimer(doc.data().expiry);
+                }
+            }
+        });
+
+        function startTimer(expiry) {
+            setInterval(() => {
+                const diff = expiry.toDate().getTime() - Date.now();
+                if (diff < 0) { document.getElementById('countdown').innerText = "EXPIRED"; return; }
+                const d = Math.floor(diff / 86400000);
+                const h = Math.floor((diff % 86400000) / 3600000);
+                document.getElementById('countdown').innerText = `${d}d ${h}h`;
+            }, 1000);
+        }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
