@@ -18,7 +18,7 @@
             margin: 0; min-height: 100vh; overflow-x: hidden; position: relative;
         }
         
-        /* Sigma Watermark */
+        /* Sigma Watermark Background */
         body::before {
             content: ""; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 85%; height: 85%; opacity: 0.04; pointer-events: none; z-index: -1;
@@ -45,6 +45,8 @@
         .countdown { font-size: 2.5rem; font-weight: 900; color: var(--gold); text-align: center; margin: 20px 0; }
         .hidden { display: none !important; }
         .status-badge { background: #333; padding: 5px 12px; border-radius: 20px; font-size: 0.6rem; color: var(--gold); float: right; }
+        a { color: var(--blue); text-decoration: none; font-size: 0.8rem; transition: 0.3s; }
+        a:hover { opacity: 0.7; }
     </style>
 </head>
 <body>
@@ -59,6 +61,10 @@
             <input type="email" id="email" placeholder="Email Address">
             <input type="password" id="password" placeholder="Password">
             <button class="btn" onclick="handleAuth()">Login</button>
+            
+            <p style="text-align: center; margin-top: 20px;">
+                <a href="#" onclick="forgotPassword()">Forgot Password?</a>
+            </p>
         </div>
 
         <div id="dashboard" class="hidden">
@@ -75,7 +81,7 @@
             <div id="admin-view" class="hidden">
                 <div class="card" style="border-color: var(--gold);">
                     <p style="color: var(--gold); font-weight: 900; font-size: 0.7rem;">BOSS CONSOLE</p>
-                    <div id="pending-list" style="margin-top:10px; font-size: 0.8rem; color: #ccc;">Checking for new payments...</div>
+                    <div id="pending-list" style="margin-top:10px; font-size: 0.8rem; color: #ccc;">No new receipts found.</div>
                 </div>
             </div>
 
@@ -88,7 +94,7 @@
     </div>
 
     <script>
-        // OFFICIAL REPAIRED CONFIG
+        // FIXED FIREBASE CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyD8di8AYcgRMboUQTkdhgR0SwSo0x0szbw",
             authDomain: "carvfit-f64fa.firebaseapp.com",
@@ -101,11 +107,12 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // Register Service Worker for PWA
+        // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Error:", err));
         }
 
+        // Login Logic
         async function handleAuth() {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
@@ -116,12 +123,27 @@
             }
         }
 
+        // Forgot Password Logic
+        async function forgotPassword() {
+            const email = document.getElementById('email').value;
+            if (!email) {
+                alert("Enter your email address in the box first so I know who to send the link to.");
+                return;
+            }
+            try {
+                await auth.sendPasswordResetEmail(email);
+                alert("Reset link sent! Check your email inbox or spam.");
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        }
+
+        // Auth State & Timer Sync
         auth.onAuthStateChanged(async user => {
             if(user) {
                 document.getElementById('auth-section').classList.add('hidden');
                 document.getElementById('dashboard').classList.remove('hidden');
                 
-                // Fetch user status from database
                 const doc = await db.collection("users").doc(user.uid).get();
                 if(doc.exists) {
                     const data = doc.data();
