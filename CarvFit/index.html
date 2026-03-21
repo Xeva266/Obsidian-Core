@@ -17,35 +17,29 @@
             background: var(--black); color: white; font-family: 'Segoe UI', sans-serif; 
             margin: 0; min-height: 100vh; overflow-x: hidden; position: relative;
         }
-        
-        /* Sigma Watermark Background */
         body::before {
             content: ""; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 85%; height: 85%; opacity: 0.04; pointer-events: none; z-index: -1;
             background: url('https://i.ibb.co/LzNfXmB/bodybuilder-silhouette.png') no-repeat center;
             background-size: contain;
         }
-
         .container { width: 92%; max-width: 400px; margin: 0 auto; padding-top: 50px; }
         .card { 
             background: var(--card); border-radius: 30px; padding: 25px; margin-bottom: 20px; 
             border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        
         input { 
             width: 100%; padding: 15px; margin: 10px 0; background: rgba(0,0,0,0.5); 
             border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 15px; box-sizing: border-box; 
         }
         .btn { 
             background: var(--blue); color: white; border: none; padding: 18px; width: 100%; 
-            border-radius: 18px; font-weight: 900; cursor: pointer; text-transform: uppercase; letter-spacing: 2px;
+            border-radius: 18px; font-weight: 900; cursor: pointer; text-transform: uppercase;
         }
-        
         .countdown { font-size: 2.5rem; font-weight: 900; color: var(--gold); text-align: center; margin: 20px 0; }
         .hidden { display: none !important; }
         .status-badge { background: #333; padding: 5px 12px; border-radius: 20px; font-size: 0.6rem; color: var(--gold); float: right; }
-        a { color: var(--blue); text-decoration: none; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -61,7 +55,7 @@
             <input type="password" id="password" placeholder="Password">
             <button class="btn" onclick="handleAuth()">Login</button>
             <p style="text-align: center; margin-top: 20px;">
-                <a href="#" onclick="forgotPassword()">Forgot Password?</a>
+                <a href="#" onclick="forgotPassword()" style="color:var(--blue); text-decoration:none; font-size:0.8rem;">Forgot Password?</a>
             </p>
         </div>
 
@@ -70,21 +64,12 @@
                 <span id="role-tag" class="status-badge">MEMBER</span>
                 <h2 style="margin:0;">Status</h2>
                 <div id="timer" class="countdown">VERIFYING...</div>
-                
                 <p style="font-size: 0.8rem; color: #888;">Renew Access:</p>
                 <input type="file" id="receipt-file" style="margin-bottom:10px;">
                 <button class="btn" onclick="alert('Sent for verification!')">Submit Receipt</button>
             </div>
-
-            <div id="admin-view" class="hidden">
-                <div class="card" style="border-color: var(--gold);">
-                    <p style="color: var(--gold); font-weight: 900; font-size: 0.7rem;">BOSS CONSOLE</p>
-                    <div id="pending-list" style="margin-top:10px; font-size: 0.8rem; color: #ccc;">No new receipts found.</div>
-                </div>
-            </div>
-
             <div class="card">
-                <p style="color: var(--blue); font-size: 0.7rem; font-weight: 900; margin-bottom: 5px;">PAYMENT DETAILS</p>
+                <p style="color: var(--blue); font-size: 0.7rem; font-weight: 900;">PAYMENT DETAILS</p>
                 <h2 style="margin: 0;">811 049 8093</h2>
                 <p style="color: #888; margin: 5px 0 0 0;">Opay | CarvFit Official</p>
             </div>
@@ -92,7 +77,6 @@
     </div>
 
     <script>
-        // FIXED FIREBASE CONFIG (No "import" statements)
         const firebaseConfig = {
             apiKey: "AIzaSyD8di8AYcgRMboUQTkdhgR0SwSo0x0szbw",
             authDomain: "carvfit-f64fa.firebaseapp.com",
@@ -102,15 +86,9 @@
             appId: "1:945780182023:web:7dfb52021a3a689953eea2"
         };
 
-        // Initialize Firebase the correct way for HTML
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-
-        // PWA Service Worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Error:", err));
-        }
 
         async function handleAuth() {
             const email = document.getElementById('email').value;
@@ -124,51 +102,19 @@
 
         async function forgotPassword() {
             const email = document.getElementById('email').value;
-            if (!email) {
-                alert("Enter your email first.");
-                return;
-            }
+            if (!email) { alert("Enter email first."); return; }
             try {
                 await auth.sendPasswordResetEmail(email);
-                alert("Reset link sent! Check your inbox.");
-            } catch (e) {
-                alert("Error: " + e.message);
-            }
+                alert("Reset link sent!");
+            } catch (e) { alert("Error: " + e.message); }
         }
 
         auth.onAuthStateChanged(async user => {
             if(user) {
                 document.getElementById('auth-section').classList.add('hidden');
                 document.getElementById('dashboard').classList.remove('hidden');
-                
-                const doc = await db.collection("users").doc(user.uid).get();
-                if(doc.exists) {
-                    const data = doc.data();
-                    if(data.role === 'admin') {
-                        document.getElementById('role-tag').innerText = "BOSS MODE";
-                        document.getElementById('admin-view').classList.remove('hidden');
-                    }
-                    if(data.expiry) {
-                        startTimer(data.expiry);
-                    } else {
-                        document.getElementById('timer').innerText = "INACTIVE";
-                    }
-                }
             }
         });
-
-        function startTimer(expiry) {
-            setInterval(() => {
-                const diff = expiry.toDate().getTime() - Date.now();
-                if (diff < 0) { 
-                    document.getElementById('timer').innerText = "EXPIRED"; 
-                    return; 
-                }
-                const d = Math.floor(diff / 86400000);
-                const h = Math.floor((diff % 86400000) / 3600000);
-                document.getElementById('timer').innerText = `${d}d ${h}h`;
-            }, 1000);
-        }
     </script>
 </body>
 </html>
