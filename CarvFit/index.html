@@ -7,9 +7,9 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#050505">
 
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
 
     <style>
         :root { --blue: #007bff; --card: rgba(25, 25, 25, 0.9); --gold: #f1c40f; --black: #050505; }
@@ -45,8 +45,7 @@
         .countdown { font-size: 2.5rem; font-weight: 900; color: var(--gold); text-align: center; margin: 20px 0; }
         .hidden { display: none !important; }
         .status-badge { background: #333; padding: 5px 12px; border-radius: 20px; font-size: 0.6rem; color: var(--gold); float: right; }
-        a { color: var(--blue); text-decoration: none; font-size: 0.8rem; transition: 0.3s; }
-        a:hover { opacity: 0.7; }
+        a { color: var(--blue); text-decoration: none; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -61,7 +60,6 @@
             <input type="email" id="email" placeholder="Email Address">
             <input type="password" id="password" placeholder="Password">
             <button class="btn" onclick="handleAuth()">Login</button>
-            
             <p style="text-align: center; margin-top: 20px;">
                 <a href="#" onclick="forgotPassword()">Forgot Password?</a>
             </p>
@@ -94,7 +92,7 @@
     </div>
 
     <script>
-        // FIXED FIREBASE CONFIG
+        // FIXED FIREBASE CONFIG (No "import" statements)
         const firebaseConfig = {
             apiKey: "AIzaSyD8di8AYcgRMboUQTkdhgR0SwSo0x0szbw",
             authDomain: "carvfit-f64fa.firebaseapp.com",
@@ -103,16 +101,17 @@
             messagingSenderId: "945780182023",
             appId: "1:945780182023:web:7dfb52021a3a689953eea2"
         };
+
+        // Initialize Firebase the correct way for HTML
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // PWA Service Worker Registration
+        // PWA Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(err => console.log("SW Error:", err));
         }
 
-        // Login Logic
         async function handleAuth() {
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
@@ -123,22 +122,20 @@
             }
         }
 
-        // Forgot Password Logic
         async function forgotPassword() {
             const email = document.getElementById('email').value;
             if (!email) {
-                alert("Enter your email address in the box first so I know who to send the link to.");
+                alert("Enter your email first.");
                 return;
             }
             try {
                 await auth.sendPasswordResetEmail(email);
-                alert("Reset link sent! Check your email inbox or spam.");
+                alert("Reset link sent! Check your inbox.");
             } catch (e) {
                 alert("Error: " + e.message);
             }
         }
 
-        // Auth State & Timer Sync
         auth.onAuthStateChanged(async user => {
             if(user) {
                 document.getElementById('auth-section').classList.add('hidden');
